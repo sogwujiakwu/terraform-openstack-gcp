@@ -1,4 +1,4 @@
-terraform {
+/*terraform {
   required_providers {
     google = {
       source  = "hashicorp/google"
@@ -10,7 +10,7 @@ terraform {
 provider "google" {
   project = "smart-nomad-433514-k5"
 }
-
+*/
 resource "google_compute_network" "openstack_vpc_network" {
   name = "openstack-network"
 }
