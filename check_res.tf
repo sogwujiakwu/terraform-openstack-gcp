@@ -25,7 +25,7 @@ data "google_compute_machine_types" "vm_type" {
 # Output to show the availability of the machine type
 output "available_vm_types" {
   value = {
-    for zone, vm_type in data.google_compute_machine_types.vm_type : zone => vm_type.machine_types
+    for zone, vm_type in data.google_compute_machine_types.vm_type : zone => vm_type.machine_types[0].self_link
   }
 }
 
