@@ -1,5 +1,5 @@
 variable "zone" {
-  default = "__ZONE_PLACEHOLDER__"
+  default = "us-east1-c"
 }
 
 resource "google_compute_instance" "openstack_controller" {

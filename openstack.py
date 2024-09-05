@@ -4,12 +4,12 @@ from google.oauth2 import service_account
 from googleapiclient.discovery import build
 
 # Set the directory where your Terraform files are located
-terraform_directory = "~/terraform-openstack-gcp"
-os.chdir(terraform_directory)
+terraform_directory = ""
+#os.chdir(terraform_directory)
 
 # Google Cloud project and credentials
-PROJECT_ID = "<your-project-id>"
-CREDENTIALS_FILE = "<path-to-your-service-account-key>.json"
+PROJECT_ID = "smart-nomad-433514-k5"
+CREDENTIALS_FILE = "../terraform-sa.json"
 
 # Get the list of available zones in the region
 def get_gcp_zones(project_id, credentials_file):
