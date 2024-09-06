@@ -49,7 +49,7 @@ resource "google_compute_instance" "openstack_workstation" {
   boot_disk {
     initialize_params {
       size = 200
-      image = "nested-vm-image"
+      image = "centos-cloud/centos-stream-9"
     }
   }
   can_ip_forward = true

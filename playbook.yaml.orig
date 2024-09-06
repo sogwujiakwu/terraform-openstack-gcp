@@ -26,12 +26,12 @@
       command: setenforce 0
       ignore_errors: true  # Optional: Ignores errors in case SELinux is already in permissive or disabled mode
 
-        # - name: Disable SELinux permanently in /etc/selinux/config
-        #   replace:
-        #   path: /etc/selinux/config
-        #   regexp: '^SELINUX=enforcing'
-        #  replace: 'SELINUX=disabled'
-        #backup: yes  # Creates a backup of the file before modifying it
+    - name: Disable SELinux permanently in /etc/selinux/config
+      replace:
+        path: /etc/selinux/config
+        regexp: '^SELINUX=enforcing'
+        replace: 'SELINUX=disabled'
+      backup: yes  # Creates a backup of the file before modifying it
 
     - name: Verify SELinux configuration in /etc/selinux/config
       shell: cat /etc/selinux/config | grep SELINUX=
@@ -153,19 +153,19 @@
         line: 'CONFIG_PROVISION_DEMO=n'
 
     # Set Keystone Admin password
-    #- name: Set Keystone Admin password in /root/answer.txt
-    #  lineinfile:
-    #    path: /root/answer.txt
-    #    regexp: '^CONFIG_KEYSTONE_ADMIN_PW=.*'
-    #    line: 'CONFIG_KEYSTONE_ADMIN_PW=<your_password_here>'
-    #  vars_prompt:
-    #    - name: "admin_password"
-    #      prompt: "Enter the Keystone Admin Password"
-    #      private: yes
-    #  lineinfile:
-    #    path: /root/answer.txt
-    #    regexp: '^CONFIG_KEYSTONE_ADMIN_PW=.*'
-    #    line: "CONFIG_KEYSTONE_ADMIN_PW={{ admin_password }}"
+    - name: Set Keystone Admin password in /root/answer.txt
+      lineinfile:
+        path: /root/answer.txt
+        regexp: '^CONFIG_KEYSTONE_ADMIN_PW=.*'
+        line: 'CONFIG_KEYSTONE_ADMIN_PW=<your_password_here>'
+      vars_prompt:
+        - name: "admin_password"
+          prompt: "Enter the Keystone Admin Password"
+          private: yes
+      lineinfile:
+        path: /root/answer.txt
+        regexp: '^CONFIG_KEYSTONE_ADMIN_PW=.*'
+        line: "CONFIG_KEYSTONE_ADMIN_PW={{ admin_password }}"
 
     # Enable OpenStack Orchestration (Heat)
     - name: Enable OpenStack Orchestration (Heat) in /root/answer.txt
@@ -210,18 +210,18 @@
   tasks:
 
     # Start a new tmux session, run Packstack with the answer file, and log the output
-    #- name: Run Packstack with answer file in tmux and log output
-    #  expect:
-    #    command: |
-    #      tmux new-session -d -s packstack_session "packstack --answer-file=/root/answer.txt > /tmp/packstack_install.log 2>&1"
-    #    responses:
-    #      'Password for.*': "{{ node_password }}"
-    #  args:
-    #    creates: /tmp/packstack_install.log  # Task won't re-run if the log file already exists
-    #  vars_prompt:
-    #    - name: "node_password"
-    #      prompt: "Enter the password for the controller and compute nodes"
-    #      private: yes
+    - name: Run Packstack with answer file in tmux and log output
+      expect:
+        command: |
+          tmux new-session -d -s packstack_session "packstack --answer-file=/root/answer.txt > /tmp/packstack_install.log 2>&1"
+        responses:
+          'Password for.*': "{{ node_password }}"
+      args:
+        creates: /tmp/packstack_install.log  # Task won't re-run if the log file already exists
+      vars_prompt:
+        - name: "node_password"
+          prompt: "Enter the password for the controller and compute nodes"
+          private: yes
 
     # Debug message to manually check tmux session or logs
     - name: Check tmux session or logs manually

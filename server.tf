@@ -28,7 +28,7 @@ resource "google_compute_instance" "openstack_compute" {
   tags         = ["http-server", "https-server", "novnc", "openstack-apis"]
   boot_disk {
     initialize_params {
-      size  = 200
+      size = 200
       image = "nested-vm-image"
     }
   }
@@ -48,8 +48,8 @@ resource "google_compute_instance" "openstack_workstation" {
   tags         = ["http-server", "https-server", "novnc", "openstack-apis"]
   boot_disk {
     initialize_params {
-      size  = 200
-      image = "nested-vm-image"
+      size = 200
+      image = "centos-cloud/centos-stream-9"
     }
   }
   can_ip_forward = true
