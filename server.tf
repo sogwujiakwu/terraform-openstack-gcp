@@ -15,7 +15,7 @@ resource "google_compute_instance" "openstack_controller" {
   }
   can_ip_forward = true
   network_interface {
-    network = google_compute_network.openstack_vpc_network.name
+    network = "default"
     access_config {
     }
   }
@@ -28,13 +28,14 @@ resource "google_compute_instance" "openstack_compute" {
   tags         = ["http-server", "https-server", "novnc", "openstack-apis"]
   boot_disk {
     initialize_params {
-      size = 200
+      size  = 200
       image = "nested-vm-image"
     }
   }
   can_ip_forward = true
   network_interface {
-    network = google_compute_network.openstack_vpc_network.name
+    #network = google_compute_network.default.name
+    network = "default"
     access_config {
     }
   }
@@ -47,13 +48,13 @@ resource "google_compute_instance" "openstack_workstation" {
   tags         = ["http-server", "https-server", "novnc", "openstack-apis"]
   boot_disk {
     initialize_params {
-      size = 200
+      size  = 200
       image = "nested-vm-image"
     }
   }
   can_ip_forward = true
   network_interface {
-    network = google_compute_network.openstack_vpc_network.name
+    network = "default"
     access_config {
     }
   }

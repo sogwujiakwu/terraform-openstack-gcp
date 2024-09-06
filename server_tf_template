@@ -15,7 +15,7 @@ resource "google_compute_instance" "openstack_controller" {
   }
   can_ip_forward = true
   network_interface {
-    network = google_compute_network.openstack_vpc_network.name
+    network = "default"
     access_config {
     }
   }
@@ -34,7 +34,8 @@ resource "google_compute_instance" "openstack_compute" {
   }
   can_ip_forward = true
   network_interface {
-    network = google_compute_network.openstack_vpc_network.name
+    #network = google_compute_network.default.name
+    network = "default"
     access_config {
     }
   }
@@ -53,7 +54,7 @@ resource "google_compute_instance" "openstack_workstation" {
   }
   can_ip_forward = true
   network_interface {
-    network = google_compute_network.openstack_vpc_network.name
+    network = "default"
     access_config {
     }
   }
