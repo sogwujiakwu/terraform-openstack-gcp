@@ -40,6 +40,52 @@
       debug:
         msg: "SELinux configuration: {{ selinux_config_output.stdout }}"
 
+- name: Set root password on controller and compute nodes
+  hosts: all
+  become: yes
+  vars_prompt:
+    - name: "root_password"
+      prompt: "Enter the new root password"
+      private: yes  # Hides the password input
+
+  tasks:
+    - name: Hash the root password
+      set_fact:
+        hashed_root_password: "{{ root_password | password_hash('sha512') }}"
+
+    - name: Set root password
+      user:
+        name: root
+        password: "{{ hashed_root_password }}"
+
+- name: Update and configure system
+  hosts: all
+  become: yes
+  tasks:
+
+    - name: Update all packages
+      dnf:
+        name: '*'
+        state: latest
+        update_cache: yes
+
+    - name: Reboot the system
+      reboot:
+        msg: "Rebooting after package update"
+        delay: 10
+        connect_timeout: 5
+
+    - name: Wait for the system to come back online
+      wait_for:
+        port: 22
+        delay: 10
+        timeout: 300
+      register: wait_for_result
+
+    - name: Display wait_for output
+      debug:
+        var: wait_for_result
+
 - name: OpenStack and Network Configuration Setup
   hosts: all
   become: yes  # Ensures commands are run with elevated privileges
@@ -135,7 +181,7 @@
         var: network_status.stdout
 
 - name: OpenStack Packstack Configuration
-  hosts: controller
+  hosts: controller_group
   become: yes  # Run with elevated privileges
 
   vars_prompt:
@@ -172,19 +218,19 @@
         regexp: '^CONFIG_HEAT_INSTALL=.*'
         line: 'CONFIG_HEAT_INSTALL=y'
 
-    # Set Compute Hosts
+    # Set Compute Hosts dynamically using inventory variables
     - name: Set Compute hosts in /root/answer.txt
       lineinfile:
         path: /root/answer.txt
         regexp: '^CONFIG_COMPUTE_HOSTS=.*'
-        line: 'CONFIG_COMPUTE_HOSTS=10.142.0.10,10.142.0.8'
+        line: "CONFIG_COMPUTE_HOSTS={{ groups['controller_group'] | map('extract', hostvars, 'ansible_host') | join(',') }},{{ groups['compute_group'] | map('extract', hostvars, 'ansible_host') | join(',') }}"
 
-    # Set Network Hosts
+    # Set Network Hosts dynamically using inventory variables
     - name: Set Network hosts in /root/answer.txt
       lineinfile:
         path: /root/answer.txt
         regexp: '^CONFIG_NETWORK_HOSTS=.*'
-        line: 'CONFIG_NETWORK_HOSTS=10.142.0.10,10.142.0.8'
+        line: "CONFIG_NETWORK_HOSTS={{ groups['controller_group'] | map('extract', hostvars, 'ansible_host') | join(',') }},{{ groups['compute_group'] | map('extract', hostvars, 'ansible_host') | join(',') }}"
 
     # Configure Neutron OVN bridge mappings
     - name: Set Neutron OVN bridge interfaces in /root/answer.txt
@@ -202,8 +248,10 @@
     - name: Show the answer file output
       debug:
         var: answer_file_output.stdout
+
+
 - name: Packstack and Apache Configuration with Tmux and Automated Password Input with Logging
-  hosts: controller
+  hosts: controller_group
   become: yes  # Run with elevated privileges
   vars:
     ansible_python_interpreter: /usr/bin/python3    
@@ -230,14 +278,13 @@
       debug:
         msg: "Run 'tmux a -t packstack_session' to check progress or check the log file at /tmp/packstack_install.log."
 
-    # Modify the Apache configuration for Horizon to insert ServerAlias at the end
-    - name: Insert ServerAlias 10.142.0.10 in /etc/httpd/conf.d/15-horizon_vhost.conf
+    # Modify the Apache configuration for Horizon to insert ServerAlias at the end dynamically
+    - name: Insert ServerAlias for the controller in /etc/httpd/conf.d/15-horizon_vhost.conf
       lineinfile:
         path: /etc/httpd/conf.d/15-horizon_vhost.conf
-        line: 'ServerAlias 10.142.0.10'
+        line: "ServerAlias {{ hostvars[groups['controller_group'][0]].ansible_host }}"
         insertafter: EOF  # Insert at the end of the file
         state: present
-
 
     # Restart Apache (httpd) service after modifying the configuration
     - name: Restart Apache httpd service
