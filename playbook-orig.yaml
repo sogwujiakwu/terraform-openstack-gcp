@@ -31,7 +31,6 @@
         path: /etc/selinux/config
         regexp: '^SELINUX=enforcing'
         replace: 'SELINUX=disabled'
-      backup: yes  # Creates a backup of the file before modifying it
 
     - name: Verify SELinux configuration in /etc/selinux/config
       shell: cat /etc/selinux/config | grep SELINUX=
@@ -111,13 +110,14 @@
         - "nameserver 8.8.8.8"
         - "nameserver 8.8.4.4"
 
-    # Remove ADDZEROCONF section from /etc/sysconfig/network-scripts/ifup-eth
-    - name: Remove ADDZEROCONF from /etc/sysconfig/network-scripts/ifup-eth
+    # Remove lines between # Add Zeroconf route and # IPv6 initialization
+    - name: Remove lines between markers
       replace:
         path: /etc/sysconfig/network-scripts/ifup-eth
-        regexp: 'ADDZEROCONF=.*'
-        replace: ''
-
+        regexp: '(^# Add Zeroconf route.*?\n)(.*?)(# IPv6 initialization\?)'
+        replace: '\1\n\3'
+        backup: yes    
+    
     # Restart network service
     - name: Restart network service
       systemd:
@@ -137,6 +137,12 @@
 - name: OpenStack Packstack Configuration
   hosts: controller
   become: yes  # Run with elevated privileges
+
+  vars_prompt:
+    - name: "admin_password"
+      prompt: "Enter the Keystone Admin Password"
+      private: yes  # Hides the password input
+
   tasks:
 
     # Generate the answer file for Packstack
@@ -157,14 +163,6 @@
       lineinfile:
         path: /root/answer.txt
         regexp: '^CONFIG_KEYSTONE_ADMIN_PW=.*'
-        line: 'CONFIG_KEYSTONE_ADMIN_PW=<your_password_here>'
-      vars_prompt:
-        - name: "admin_password"
-          prompt: "Enter the Keystone Admin Password"
-          private: yes
-      lineinfile:
-        path: /root/answer.txt
-        regexp: '^CONFIG_KEYSTONE_ADMIN_PW=.*'
         line: "CONFIG_KEYSTONE_ADMIN_PW={{ admin_password }}"
 
     # Enable OpenStack Orchestration (Heat)
@@ -179,14 +177,14 @@
       lineinfile:
         path: /root/answer.txt
         regexp: '^CONFIG_COMPUTE_HOSTS=.*'
-        line: 'CONFIG_COMPUTE_HOSTS=10.142.0.6,10.142.0.7'
+        line: 'CONFIG_COMPUTE_HOSTS=10.142.0.10,10.142.0.8'
 
     # Set Network Hosts
     - name: Set Network hosts in /root/answer.txt
       lineinfile:
         path: /root/answer.txt
         regexp: '^CONFIG_NETWORK_HOSTS=.*'
-        line: 'CONFIG_NETWORK_HOSTS=10.142.0.6,10.142.0.7'
+        line: 'CONFIG_NETWORK_HOSTS=10.142.0.10,10.142.0.8'
 
     # Configure Neutron OVN bridge mappings
     - name: Set Neutron OVN bridge interfaces in /root/answer.txt
@@ -200,13 +198,21 @@
       command: cat /root/answer.txt
       register: answer_file_output
 
+    # Show the answer file output
     - name: Show the answer file output
       debug:
         var: answer_file_output.stdout
-
 - name: Packstack and Apache Configuration with Tmux and Automated Password Input with Logging
   hosts: controller
   become: yes  # Run with elevated privileges
+  vars:
+    ansible_python_interpreter: /usr/bin/python3    
+
+  vars_prompt:
+    - name: "node_password"
+      prompt: "Enter the password for the controller and compute nodes"
+      private: yes  # This will hide the password input
+
   tasks:
 
     # Start a new tmux session, run Packstack with the answer file, and log the output
@@ -218,23 +224,20 @@
           'Password for.*': "{{ node_password }}"
       args:
         creates: /tmp/packstack_install.log  # Task won't re-run if the log file already exists
-      vars_prompt:
-        - name: "node_password"
-          prompt: "Enter the password for the controller and compute nodes"
-          private: yes
 
     # Debug message to manually check tmux session or logs
     - name: Check tmux session or logs manually
       debug:
         msg: "Run 'tmux a -t packstack_session' to check progress or check the log file at /tmp/packstack_install.log."
 
-    # Modify the Apache configuration for Horizon
-    - name: Modify Horizon vhost configuration to set ServerAlias
+    # Modify the Apache configuration for Horizon to insert ServerAlias at the end
+    - name: Insert ServerAlias 10.142.0.10 in /etc/httpd/conf.d/15-horizon_vhost.conf
       lineinfile:
         path: /etc/httpd/conf.d/15-horizon_vhost.conf
-        regexp: '^ServerAlias.*'
-        line: 'ServerAlias <controller external ip>'
-        backrefs: yes
+        line: 'ServerAlias 10.142.0.10'
+        insertafter: EOF  # Insert at the end of the file
+        state: present
+
 
     # Restart Apache (httpd) service after modifying the configuration
     - name: Restart Apache httpd service

@@ -1,0 +1,112 @@
+---
+- name: Check if CPU supports virtualization (vmx or svm)
+  hosts: all
+  tasks:
+    - name: Run the command to check CPU flags
+      shell: "egrep 'vmx|svm' /proc/cpuinfo | wc -l"
+      register: cpu_flags_result
+
+    - name: Display the output
+      debug:
+        msg: "Number of CPU flags (vmx or svm) found: {{ cpu_flags_result.stdout }}"
+
+    - name: Check if the CPU supports virtualization
+      assert:
+        that:
+          - cpu_flags_result.stdout | int > 0
+        fail_msg: "No CPU virtualization support (vmx or svm) found!"
+        success_msg: "CPU supports virtualization (vmx or svm)."
+
+- name: Manage SELinux settings
+  hosts: all
+  become: yes  # Ensures that commands are run with elevated privileges (sudo)
+  tasks:
+
+    - name: Set SELinux to permissive mode (setenforce 0)
+      command: setenforce 0
+      ignore_errors: true  # Optional: Ignores errors in case SELinux is already in permissive or disabled mode
+
+    - name: Disable SELinux permanently in /etc/selinux/config
+      replace:
+        path: /etc/selinux/config
+        regexp: '^SELINUX=enforcing'
+        replace: 'SELINUX=disabled'
+
+    - name: Verify SELinux configuration in /etc/selinux/config
+      shell: cat /etc/selinux/config | grep SELINUX=
+      register: selinux_config_output
+
+    - name: Display SELinux configuration
+      debug:
+        msg: "SELinux configuration: {{ selinux_config_output.stdout }}"
+
+- name: OpenStack and Network Configuration Setup
+  hosts: all
+  become: yes  # Ensures commands are run with elevated privileges
+  tasks:
+
+    # Enable CRB (CodeReady Builder) repository
+    - name: Enable crb repository
+      command: dnf config-manager --enable crb
+
+    # Install OpenStack Yoga release
+    - name: Install CentOS OpenStack Yoga release
+      dnf:
+        name: centos-release-openstack-yoga
+        state: present
+
+    # Update all packages
+    - name: Update all packages
+      dnf:
+        name: "*"
+        state: latest
+
+    # Install network scripts package
+    - name: Install network-scripts package
+      dnf:
+        name: network-scripts
+        state: present
+
+    # Disable and stop firewalld
+    - name: Disable and stop firewalld
+      systemd:
+        name: firewalld
+        enabled: no
+        state: stopped
+
+    # Disable and stop NetworkManager
+    - name: Disable and stop NetworkManager
+      systemd:
+        name: NetworkManager
+        enabled: no
+        state: stopped
+
+    # Enable and start network service
+    - name: Enable and start network service
+      systemd:
+        name: network
+        enabled: yes
+        state: started
+
+    # Install OpenStack Packstack
+    - name: Install OpenStack Packstack
+      dnf:
+        name: openstack-packstack
+        state: present
+
+    # Install tmux
+    - name: Install tmux
+      dnf:
+        name: tmux
+        state: present
+
+    # Update /etc/resolv.conf for DNS settings
+    - name: Set DNS nameservers in /etc/resolv.conf
+      lineinfile:
+        path: /etc/resolv.conf
+        line: "{{ item }}"
+        state: present
+      loop:
+        - "nameserver 8.8.8.8"
+        - "nameserver 8.8.4.4"
+
