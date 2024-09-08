@@ -6,3 +6,4 @@
 *.pem
 myenv/*
 *.ini
+server.tf

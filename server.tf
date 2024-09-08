@@ -2,6 +2,10 @@ variable "zone" {
   default = "us-east1-b"
 }
 
+variable "username" {
+  default = "devopsokeke"
+}
+
 resource "google_compute_instance" "openstack_controller" {
   name         = "openstack-controller"
   machine_type = "n1-standard-4"
@@ -20,7 +24,7 @@ resource "google_compute_instance" "openstack_controller" {
     }
   }
   metadata = {
-    ssh-keys = "devopsokeke:${tls_private_key.ssh.public_key_openssh}"
+    ssh-keys = "var.username:${tls_private_key.ssh.public_key_openssh}"
   }
 }
 resource "google_compute_instance" "openstack_compute" {
@@ -43,8 +47,8 @@ resource "google_compute_instance" "openstack_compute" {
   }
 
   metadata = {
-    #    ssh-keys = "devopsokeke:${file("~/.ssh/id_rsa.pub")}"
-    ssh-keys = "devopsokeke:${tls_private_key.ssh.public_key_openssh}"
+    #    ssh-keys = "var.username:${file("~/.ssh/id_rsa.pub")}"
+    ssh-keys = "var.username:${tls_private_key.ssh.public_key_openssh}"
 
   }
 
@@ -67,7 +71,7 @@ resource "google_compute_instance" "openstack_workstation" {
     }
   }
   metadata = {
-    ssh-keys = "devopsokeke:${tls_private_key.ssh.public_key_openssh}"
+    ssh-keys = "var.username:${tls_private_key.ssh.public_key_openssh}"
 
   }
 }
