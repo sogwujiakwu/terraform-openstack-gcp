@@ -1,0 +1,123 @@
+---
+- name: Check if CPU supports virtualization (vmx or svm)
+  hosts: all
+  tasks:
+    - name: Run the command to check CPU flags
+      shell: "egrep 'vmx|svm' /proc/cpuinfo | wc -l"
+      register: cpu_flags_result
+
+    - name: Display the output
+      debug:
+        msg: "Number of CPU flags (vmx or svm) found: {{ cpu_flags_result.stdout }}"
+
+    - name: Check if the CPU supports virtualization
+      assert:
+        that:
+          - cpu_flags_result.stdout | int > 0
+        fail_msg: "No CPU virtualization support (vmx or svm) found!"
+        success_msg: "CPU supports virtualization (vmx or svm)."
+
+- name: Configure SSH for root login and password authentication
+  hosts: all
+  become: yes  # Run with elevated privileges (sudo)
+  tasks:
+    
+    # Enable PasswordAuthentication in /etc/ssh/sshd_config
+    - name: Enable PasswordAuthentication in SSH config
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PasswordAuthentication no'
+        line: 'PasswordAuthentication yes'
+        backup: yes  # Backup the file before editing
+
+    # Enable PermitRootLogin in /etc/ssh/sshd_config
+    - name: Enable PermitRootLogin in SSH config
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^PermitRootLogin no'
+        line: 'PermitRootLogin yes'
+        backup: yes  # Backup the file before editing
+
+    # Restart SSH service
+    - name: Restart SSH service
+      systemd:
+        name: sshd
+        state: restarted
+
+    # Verify the changes in /etc/ssh/sshd_config
+    - name: Verify SSH config settings for root login and password authentication
+      shell: cat /etc/ssh/sshd_config | grep -iE 'permitrootlogin|passwordauthentication' | grep -v "#"
+      register: ssh_config_output
+
+    # Display the result of the verification
+    - name: Display SSH configuration settings
+      debug:
+        var: ssh_config_output.stdout
+
+    # Check the status of SSH service
+    - name: Check SSH service status
+      systemd:
+        name: sshd
+        state: started
+      register: sshd_status
+
+    # Display the SSH service status
+    - name: Display SSH service status
+      debug:
+        var: sshd_status
+
+- name: Manage SELinux settings
+  hosts: all
+  become: yes  # Ensures that commands are run with elevated privileges (sudo)
+  tasks:
+
+    - name: Set SELinux to permissive mode (setenforce 0)
+      command: setenforce 0
+      ignore_errors: true  # Optional: Ignores errors in case SELinux is already in permissive or disabled mode
+
+    - name: Disable SELinux permanently in /etc/selinux/config
+      replace:
+        path: /etc/selinux/config
+        regexp: '^SELINUX=enforcing'
+        replace: 'SELINUX=disabled'
+
+    - name: Verify SELinux configuration in /etc/selinux/config
+      shell: cat /etc/selinux/config | grep SELINUX=
+      register: selinux_config_output
+
+    - name: Display SELinux configuration
+      debug:
+        msg: "SELinux configuration: {{ selinux_config_output.stdout }}"
+
+- name: Set root password on controller and compute nodes
+  hosts: all
+  become: yes
+  vars_prompt:
+    - name: "root_password"
+      prompt: "Enter the new root password"
+      private: yes  # Hides the password input
+
+  tasks:
+    - name: Hash the root password
+      set_fact:
+        hashed_root_password: "{{ root_password | password_hash('sha512') }}"
+
+    - name: Set root password
+      user:
+        name: root
+        password: "{{ hashed_root_password }}"
+
+- name: Update and configure system
+  hosts: all
+  become: yes
+  tasks:
+
+    - name: Update all packages
+      dnf:
+        name: '*'
+        state: latest
+        update_cache: yes
+
+    - name: Reboot the node
+      reboot:
+        reboot_timeout: 600

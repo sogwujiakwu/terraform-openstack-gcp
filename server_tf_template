@@ -24,7 +24,7 @@ resource "google_compute_instance" "openstack_controller" {
     }
   }
   metadata = {
-    ssh-keys = "var.username:${tls_private_key.ssh.public_key_openssh}"
+    ssh-keys = "${var.username}:${tls_private_key.ssh.public_key_openssh}"
   }
 }
 resource "google_compute_instance" "openstack_compute" {
@@ -47,8 +47,8 @@ resource "google_compute_instance" "openstack_compute" {
   }
 
   metadata = {
-    #    ssh-keys = "var.username:${file("~/.ssh/id_rsa.pub")}"
-    ssh-keys = "var.username:${tls_private_key.ssh.public_key_openssh}"
+    #    ssh-keys = "${var.username}:${file("~/.ssh/id_rsa.pub")}"
+    ssh-keys = "${var.username}:${tls_private_key.ssh.public_key_openssh}"
 
   }
 
@@ -71,7 +71,7 @@ resource "google_compute_instance" "openstack_workstation" {
     }
   }
   metadata = {
-    ssh-keys = "var.username:${tls_private_key.ssh.public_key_openssh}"
+    ssh-keys = "${var.username}:${tls_private_key.ssh.public_key_openssh}"
 
   }
 }

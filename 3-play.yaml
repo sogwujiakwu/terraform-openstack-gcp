@@ -1,0 +1,70 @@
+---
+- name: OpenStack Packstack Configuration
+  hosts: controller_group
+  become: yes  # Run with elevated privileges
+
+  vars_prompt:
+    - name: "admin_password"
+      prompt: "Enter the Keystone Admin Password"
+      private: yes  # Hides the password input
+
+  tasks:
+
+    # Generate the answer file for Packstack
+    - name: Generate Packstack answer file
+      command: packstack --gen-answer-file=/root/answer.txt
+      args:
+        creates: /root/answer.txt  # This prevents running the task if the file already exists
+
+    # Skip provisioning of the Demo project
+    - name: Set CONFIG_PROVISION_DEMO to 'n' in /root/answer.txt
+      lineinfile:
+        path: /root/answer.txt
+        regexp: '^CONFIG_PROVISION_DEMO=.*'
+        line: 'CONFIG_PROVISION_DEMO=n'
+
+    # Set Keystone Admin password
+    - name: Set Keystone Admin password in /root/answer.txt
+      lineinfile:
+        path: /root/answer.txt
+        regexp: '^CONFIG_KEYSTONE_ADMIN_PW=.*'
+        line: "CONFIG_KEYSTONE_ADMIN_PW={{ admin_password }}"
+
+    # Enable OpenStack Orchestration (Heat)
+    - name: Enable OpenStack Orchestration (Heat) in /root/answer.txt
+      lineinfile:
+        path: /root/answer.txt
+        regexp: '^CONFIG_HEAT_INSTALL=.*'
+        line: 'CONFIG_HEAT_INSTALL=y'
+
+    # Set Compute Hosts dynamically using inventory variables
+    - name: Set Compute hosts in /root/answer.txt
+      lineinfile:
+        path: /root/answer.txt
+        regexp: '^CONFIG_COMPUTE_HOSTS=.*'
+        line: "CONFIG_COMPUTE_HOSTS={{ groups['controller_group'] | map('extract', hostvars, 'ansible_host') | join(',') }},{{ groups['compute_group'] | map('extract', hostvars, 'ansible_host') | join(',') }}"
+
+    # Set Network Hosts dynamically using inventory variables
+    - name: Set Network hosts in /root/answer.txt
+      lineinfile:
+        path: /root/answer.txt
+        regexp: '^CONFIG_NETWORK_HOSTS=.*'
+        line: "CONFIG_NETWORK_HOSTS={{ groups['controller_group'] | map('extract', hostvars, 'ansible_host') | join(',') }},{{ groups['compute_group'] | map('extract', hostvars, 'ansible_host') | join(',') }}"
+
+    # Configure Neutron OVN bridge mappings
+    - name: Set Neutron OVN bridge interfaces in /root/answer.txt
+      lineinfile:
+        path: /root/answer.txt
+        regexp: '^CONFIG_NEUTRON_OVN_BRIDGE_IFACES=.*'
+        line: 'CONFIG_NEUTRON_OVN_BRIDGE_IFACES=br-ex:eth0'
+
+    # Display the modified answer file
+    - name: Display modified answer file
+      command: cat /root/answer.txt
+      register: answer_file_output
+
+    # Show the answer file output
+    - name: Show the answer file output
+      debug:
+        var: answer_file_output.stdout
+

@@ -69,22 +69,9 @@
         state: latest
         update_cache: yes
 
-    - name: Reboot the system
+    - name: Reboot the node
       reboot:
-        msg: "Rebooting after package update"
-        delay: 10
-        connect_timeout: 5
-
-    - name: Wait for the system to come back online
-      wait_for:
-        port: 22
-        delay: 10
-        timeout: 300
-      register: wait_for_result
-
-    - name: Display wait_for output
-      debug:
-        var: wait_for_result
+        reboot_timeout: 600
 
 - name: OpenStack and Network Configuration Setup
   hosts: all
